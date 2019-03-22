@@ -495,15 +495,15 @@ def axis_toint(axis: Any) -> int:
 
 
 class Vector():
-    def __init__(self, vector=None, E_array=None):
-        self.vector = vector
+    def __init__(self, values=None, E_array=None):
+        self.values = values
         self.E_array = E_array
 
     def calibration(self):
         """Calculate and return the calibration coefficients of the energy axes
         """
         calibration = None
-        if (self.vector is not None and self.E_array is not None):
+        if (self.values is not None and self.E_array is not None):
             calibration = {
                            # Formatted as "a{axis}{power of E}"
                            "a0": self.E_array[0],
@@ -521,9 +521,9 @@ class Vector():
         # Plot with middle-bin energy values:
         E_array_midbin = self.E_array + self.calibration()["a1"]/2
         if label is None:
-            ax.plot(E_array_midbin, self.vector)
+            ax.plot(E_array_midbin, self.values)
         elif isinstance(label, str):
-            ax.plot(E_array_midbin, self.vector, label=label)
+            ax.plot(E_array_midbin, self.values, label=label)
         else:
             raise ValueError("Keyword label must be None or string, but is",
                              label)
