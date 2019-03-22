@@ -513,6 +513,20 @@ class Vector():
             raise RuntimeError("calibration() called on empty Vector instance")
         return calibration
 
+    def transform(self, const=1, alpha=0, inplace=False):
+        """
+        Return a transformed version of the vector:
+        vector -> const * vector * exp(alpha*E_array)
+        """
+        E_array_midbin = self.E_array + self.calibration()["a1"]/2
+        vector_transformed = (const * self.values
+                              * np.exp(alpha*E_array_midbin)
+                              )
+        if inplace:
+            self.values = vector_transformed
+        else:
+            return Vector(E_array=self.E_array, values=vector_transformed)
+
     def plot(self, ax=None, yscale="linear", ylim=None, xlim=None,
              title=None, label=None):
         if ax is None:
