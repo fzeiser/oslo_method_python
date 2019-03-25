@@ -1,7 +1,7 @@
 """
 Normalization of GSF with the Oslo method
 """
-from ompy.spin_functions import SpinFunctions
+from .spin_functions import SpinFunctions
 import ompy.library as lib
 
 import numpy as np
@@ -64,11 +64,11 @@ class NormGSF:
         key = 'gsf_ext_low'
         if key not in pext:
             print("Set {} to a default".format(key))
-            pext['gsf_ext_low'] = np.array([2., -25.])
+            pext['gsf_ext_low'] = np.array([1., -25.])
         key = 'gsf_ext_high'
         if key not in pext:
             print("Set {} to a default".format(key))
-            pext['gsf_ext_high'] = np.array([2., -25.])
+            pext['gsf_ext_high'] = np.array([1., -25.])
         self.pext = pext
 
         self.ext_range = ext_range
@@ -484,9 +484,9 @@ class NormGSF:
             ext_d_slider_ax = fig.add_axes([0.25, 0.20, 0.65, 0.03],
                                            facecolor=axis_color)
 
-            sext_a = Slider(ext_a_slider_ax, 'a', 0., 2., valinit=ext_a)
+            sext_a = Slider(ext_a_slider_ax, 'a', 0., 4., valinit=ext_a)
             sext_b = Slider(ext_b_slider_ax, 'b', -30, 5, valinit=ext_b)
-            sext_c = Slider(ext_c_slider_ax, 'c', 0, 2., valinit=ext_c)
+            sext_c = Slider(ext_c_slider_ax, 'c', 0, 4., valinit=ext_c)
             sext_d = Slider(ext_d_slider_ax, 'd', -30, 5, valinit=ext_d)
 
             def slider_update(val):
