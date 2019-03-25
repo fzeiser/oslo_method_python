@@ -5,7 +5,7 @@ import scipy.stats
 import pymultinest
 import os
 
-import ompy.norm_nld as omnorm
+from .norm_nld import NormNLD
 
 
 def run_nld_2regions(p0, chi2_args):
@@ -39,29 +39,28 @@ def run_nld_2regions(p0, chi2_args):
 
     A = p0["A"]
     alpha = p0["alpha"]
-    if alpha>=0:
+    if alpha >= 0:
         alpha_exponent = math.log(alpha, 10)
     else:
         raise ValueError("Automatic prior selection not implementedfor alpha<0")
         alpha_exponent = math.log(-alpha, 10)
     T = p0["T"]
-    assert T>0, "Automatic prior selection not implementedfor T<0"
+    assert T > 0, "Automatic prior selection not implementedfor T<0"
     T_exponent = math.log(T, 10)
 
     def prior(cube, ndim, nparams):
-        # TODO: You may want to adjust this for your case!
+        # NOTE: You may want to adjust this for your case!
         # log-normal prior
-        cube[0] = scipy.stats.norm.ppf(cube[0], loc=A,scale=4*A)
+        cube[0] = scipy.stats.norm.ppf(cube[0], loc=A, scale=4*A)
         # log-uniform prior
-        # # if alpha = 1e2, it's between 1e1 and 1e3
-        cube[1] = 10**(cube[1]*(alpha_exponent+2) - (1-alpha_exponent))
-        # # log-uniform prior
-        # # if T = 1e2, it's between 1e1 and 1e3
-        cube[2] = 10**(cube[2]*(T_exponent+2) - (1-T_exponent))
-
+        # if alpha = 1e2, it's between 1e1 and 1e3
+        cube[1] = 10**(cube[1]*2 + (alpha_exponent-1))
+        # log-uniform prior
+        # if T = 1e2, it's between 1e1 and 1e3
+        cube[2] = 10**(cube[2]*2 + (T_exponent-1))
 
     def loglike(cube, ndim, nparams):
-        chi2 = omnorm.NormNLD.chi2_disc_ext(cube, *chi2_args)
+        chi2 = NormNLD.chi2_disc_ext(cube, *chi2_args)
         loglikelihood = -0.5 * chi2
         return loglikelihood
 
@@ -72,7 +71,7 @@ def run_nld_2regions(p0, chi2_args):
     if not os.path.exists(folder):
         os.makedirs(folder)
     print(os.getcwd())
-    datafile_basename = os.path.join(folder,"nld_norm_")
+    datafile_basename = os.path.join(folder, "nld_norm_")
     # datafile_basename = os.path.join(os.getcwd(), *(folder,"nld_norm_"))
     assert len(datafile_basename) < 60, "Total path length probably too long for multinest (max 80 chars)"
 
@@ -84,9 +83,9 @@ def run_nld_2regions(p0, chi2_args):
     json.dump(list(p0.keys()), open(datafile_basename + 'params.json', 'w'))
 
     analyzer = pymultinest.Analyzer(n_params,
-                                    outputfiles_basename = datafile_basename)
+                                    outputfiles_basename=datafile_basename)
     stats = analyzer.get_stats()
-    samples = analyzer.get_equal_weighted_posterior()[:,:-1]
+    samples = analyzer.get_equal_weighted_posterior()[:, :-1]
     samples = dict(zip(p0.keys(), samples.T))
 
     popt = dict()

@@ -5,6 +5,7 @@ import ompy.library as lib
 
 import numpy as np
 import scipy.stats as stats
+import warnings
 
 
 class NormNLD:
@@ -39,6 +40,8 @@ class NormNLD:
         self.nld_norm = None  # Normalized nld
         self.discretes = None
 
+        if np.max(self.nld[:,0]>1000):
+            warnings.warn("Are you sure that all input is in MeV, not keV?")
 
         if method is "2points":
             pars_req = {"nldE1", "nldE2"}
@@ -46,7 +49,7 @@ class NormNLD:
                 self.norm_2points, pnorm, pars_req)
             nld_ext = self.extrapolate()
             levels_smoothed, _ = self.get_discretes(
-                Emids=nld[:, 0], resolution=100.)
+                Emids=nld[:, 0], resolution=0.1)
             # TODO: FIX THIS!
             raise Exception("Need to work on the selection of levels here")
 
@@ -190,7 +193,7 @@ class NormNLD:
         data_low = nld[idE1:idE2, :]
 
         # Get discretes (for the lower energies)
-        levels_smoothed, _ = self.get_discretes(Emids=nld[:,0], resolution=100.)
+        levels_smoothed, _ = self.get_discretes(Emids=nld[:,0], resolution=0.1)
         levels_smoothed = levels_smoothed[idE1:idE2]
         self.discretes = np.c_[nld[idE1:idE2, 0], levels_smoothed]
 
@@ -206,31 +209,16 @@ class NormNLD:
         from scipy.optimize import differential_evolution
         chi2_args = (nldModel, nld_Sn, data_low, data_high, levels_smoothed)
 
-        p0 = [0.02*1e-3,0.0023, 600]
-        print("Chi2 guessed values: ", self.chi2_disc_ext(p0,*chi2_args))
-
+        bounds = pnorm["bounds_diff_evo"]
         res = differential_evolution(self.chi2_disc_ext,
-                                     # bounds=[(1e-7, 1e5), (1e-5, 1e-1), (0.01e3, 1e4)],
-                                     bounds=[(0.01e-3, 0.1e-3), (0.00001,0.005), (1e2,1e3)],
+                                     bounds=bounds,
                                      args=chi2_args)
         print("Result from find_norm / differential evolution:\n", res)
-        print("Chi2 after: ", self.chi2_disc_ext(res.x,*chi2_args))
-        # sys.exit()
-        # print("Eshift: ", self.EshiftFromT(res.x[2],self.pnorm["nld_Sn"]))
-        # # res.x[2] = 600
-        # self.pext["T"] = res.x[2]
-        # self.pext["Eshift"] = self.EshiftFromT(res.x[2],
-        #                                        self.pnorm["nld_Sn"])
-        # print(self.pext["T"], self.pext["Eshift"])
-        # print(self.extrapolate())
 
-        # print(self.discretes)
-        # sys.exit()
-
-        import ompy.multinest_setup as ml
+        from .multinest_setup import run_nld_2regions
         p0 = dict(zip(["A", "alpha", "T"], (res.x).T))
-        popt, samples = ml.run_nld_2regions(p0=p0,
-                                            chi2_args=chi2_args)
+        popt, samples = run_nld_2regions(p0=p0,
+                                         chi2_args=chi2_args)
 
         # set extrapolation as the median values used
         self.pext["T"] = popt["T"][0]
@@ -240,7 +228,7 @@ class NormNLD:
 
         return popt, samples
 
-    def get_discretes(self, Emids, fname=None, resolution=100.):
+    def get_discretes(self, Emids, fname=None, resolution=0.1):
         if fname is None:
             fname = self.fname_discretes
         return lib.get_discretes(Emids, fname, resolution)

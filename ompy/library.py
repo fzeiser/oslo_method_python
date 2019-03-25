@@ -445,12 +445,12 @@ def call_model(fun,pars,pars_req):
         raise TypeError("Error: Need following arguments for this method: {0}".format(pars_req))
 
 
-def get_discretes(Emids, fname, resolution=100.):
-    """ Get discrete levels, and smooth by some resolution [keV]
-    and the bins centers [keV]
+def get_discretes(Emids, fname, resolution=0.1):
+    """ Get discrete levels, and smooth by some resolution [MeV]
+    and the bins centers [MeV]
     For now: Assume linear binning """
     energies = np.loadtxt(fname)
-    # energies /= 1e3  # convert to MeV
+    energies /= 1e3  # convert to MeV
 
     # Emax = energies[-1]
     # nbins = int(np.ceil(Emax/binsize))
@@ -460,7 +460,7 @@ def get_discretes(Emids, fname, resolution=100.):
     bin_edges -= binsize / 2
 
     hist, _ = np.histogram(energies, bins=bin_edges)
-    hist = hist.astype(float) / binsize  # convert to levels/keV
+    hist = hist.astype(float) / binsize  # convert to levels/MeV
 
     from scipy.ndimage import gaussian_filter1d
     hist_smoothed = gaussian_filter1d(hist, sigma=resolution / binsize)
