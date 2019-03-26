@@ -39,7 +39,7 @@ class NormGSF:
     # nld_ext: extrapolation of nld
     # gsf_ext_range: extrapolation ranges of gsf
         important!!: need to be "shape corrected" bs alpha_norm
-    # Jtarget in 1
+    # J_target in 1
     # D0 in eV
     # Gg in meV
     # Sn in MeV
@@ -49,7 +49,7 @@ class NormGSF:
     """
 
     def __init__(self, gsf, method,
-                 Jtarget, D0, Gg, Sn, alpha_norm,
+                 J_target, D0, Gg, Sn, alpha_norm,
                  pext, ext_range, extModel=None,
                  spincutModel=None, spincutPars={},
                  nld=None, nld_ext=None):
@@ -57,7 +57,7 @@ class NormGSF:
             gsf, B=1, alpha=alpha_norm)  # shape corrected
         self.gsf = np.copy(self.gsf_in)
         self.method = method
-        self.Jtarget, self.D0, self.Gg = Jtarget, D0, Gg
+        self.J_target, self.D0, self.Gg = J_target, D0, Gg
         self.Sn = Sn
 
         # define defaults
@@ -237,7 +237,7 @@ class NormGSF:
             Absolute normalization constant
         """
 
-        Gg, D0, Jtarget = self.Gg, self.D0, self.Jtarget
+        Gg, D0, J_target = self.Gg, self.D0, self.J_target
         fnld = self.fnld
 
         def fgsf(E):
@@ -248,28 +248,28 @@ class NormGSF:
         Enld_exp_min = self.nld[0,0]
         Sn = self.Sn
 
-        def SpinSum(Ex, Jtarget):
-            if Jtarget == 0:
-                # if(Jtarget == 0.0) I_i = 1/2 => I_f = 1/2, 3/2
-                return spin_dist(Ex, Jtarget + 1/2) \
-                    + spin_dist(Ex, Jtarget + 3/2)
-            elif Jtarget == 1/2:
-                # if(Jtarget == 0.5)    I_i = 0, 1  => I_f = 0, 1, 2
-                return spin_dist(Ex, Jtarget - 1/2) \
-                    + 2 * spin_dist(Ex, Jtarget + 1/2) \
-                    + spin_dist(Ex, Jtarget + 3/2)
-            elif Jtarget == 1:
-                # if(Jtarget == 0.5) I_i = 1/2, 3/2  => I_f = 1/2, 3/2, 5/2
-                return 2 * spin_dist(Ex, Jtarget - 1/2) \
-                    + 2 * spin_dist(Ex, Jtarget + 1/2) \
-                    + spin_dist(Ex, Jtarget + 3/2)
-            elif Jtarget > 1:
+        def SpinSum(Ex, J_target):
+            if J_target == 0:
+                # if(J_target == 0.0) I_i = 1/2 => I_f = 1/2, 3/2
+                return spin_dist(Ex, J_target + 1/2) \
+                    + spin_dist(Ex, J_target + 3/2)
+            elif J_target == 1/2:
+                # if(J_target == 0.5)    I_i = 0, 1  => I_f = 0, 1, 2
+                return spin_dist(Ex, J_target - 1/2) \
+                    + 2 * spin_dist(Ex, J_target + 1/2) \
+                    + spin_dist(Ex, J_target + 3/2)
+            elif J_target == 1:
+                # if(J_target == 0.5) I_i = 1/2, 3/2  => I_f = 1/2, 3/2, 5/2
+                return 2 * spin_dist(Ex, J_target - 1/2) \
+                    + 2 * spin_dist(Ex, J_target + 1/2) \
+                    + spin_dist(Ex, J_target + 3/2)
+            elif J_target > 1:
                 # J_target > 1 > I_i = Jt-1/2, Jt+1/2
                 #                    => I_f = Jt-3/2, Jt-1/2, Jt+3/2, Jt+5/2
-                return spin_dist(Ex, Jtarget - 3/2) \
-                    + 2 * spin_dist(Ex, Jtarget - 1/2) \
-                    + 2 * spin_dist(Ex, Jtarget + 1/2) \
-                    + spin_dist(Ex, Jtarget + 3/2)
+                return spin_dist(Ex, J_target - 3/2) \
+                    + 2 * spin_dist(Ex, J_target - 1/2) \
+                    + 2 * spin_dist(Ex, J_target + 1/2) \
+                    + spin_dist(Ex, J_target + 3/2)
             else:
                 ValueError("Negative J not supported")
 
@@ -285,7 +285,7 @@ class NormGSF:
                 print("warning: at Eg = {0}: Ex < {1}; " +
                       "check rho interpolate".format(Eg, Enld_exp_min))
             integral += np.power(Eg, 3) * fgsf(Eg) * fnld(Ex) \
-                * SpinSum(Ex, Jtarget)
+                * SpinSum(Ex, J_target)
         integral *= stepSize
 
         # factor of 2 because of equi-parity (we use total nld in the
@@ -315,7 +315,7 @@ class NormGSF:
             Absolute normalization constant
         """
 
-        Gg, D0, Jtarget = self.Gg, self.D0, self.Jtarget
+        Gg, D0, J_target = self.Gg, self.D0, self.J_target
         fnld = self.fnld
         spin_dist = self.spin_dist
         # lowest energy of experimental nld points
@@ -328,7 +328,7 @@ class NormGSF:
 
         # input checks
         rho01plus = 1/2 * fnld(Sn) \
-            * (spin_dist(Sn, Jtarget - 1/2) + spin_dist(Sn, Jtarget + 1/2))
+            * (spin_dist(Sn, J_target - 1/2) + spin_dist(Sn, J_target + 1/2))
         D0_from_fnld = 1 / rho01plus * 1e6
         D0_diff = abs((D0 - D0_from_fnld))
         if (D0_diff > 0.1 * D0):
@@ -338,46 +338,46 @@ class NormGSF:
 
         # Calculating the nlds per J and parity in the residual nucleus before decay, and the accessible spins
         # (by dipole decay <- assumption)
-        if Jtarget == 0:
+        if J_target == 0:
             # J_target = 0 > I_i = 1/2 => I_f = 1/2, 3/2
             # I_residual,i = 1/2 -> I_f = 0, 1
-            rho0pi = 1/2 * fnld(Sn) * spin_dist(Sn, Jtarget + 1/2)
-            accessible_spin0 = lambda Ex, Jtarget: \
-                spin_dist(Ex, Jtarget - 1/2) + spin_dist(Ex, Jtarget + 1/2)
+            rho0pi = 1/2 * fnld(Sn) * spin_dist(Sn, J_target + 1/2)
+            accessible_spin0 = lambda Ex, J_target: \
+                spin_dist(Ex, J_target - 1/2) + spin_dist(Ex, J_target + 1/2)
             # only one spin accessible
             rho1pi = None
-            accessible_spin1 = lambda Ex, Jtarget: None
-        elif Jtarget == 1/2:
+            accessible_spin1 = lambda Ex, J_target: None
+        elif J_target == 1/2:
             # J_target = 1/2  >  I_i = 0, 1  => I_f = 0, 1, 2
             # I_residual,i = 0 -> I_f = 1
-            rho0pi = 1/2 * fnld(Sn) * spin_dist(Sn, Jtarget - 1/2)
-            accessible_spin0 = lambda Ex, Jtarget: \
-                spin_dist(Ex, Jtarget + 1/2)
+            rho0pi = 1/2 * fnld(Sn) * spin_dist(Sn, J_target - 1/2)
+            accessible_spin0 = lambda Ex, J_target: \
+                spin_dist(Ex, J_target + 1/2)
             # I_residual,i = 1 -> I_f = 0,1,2
-            rho1pi = 1/2 * fnld(Sn) * spin_dist(Sn, Jtarget + 1/2)
-            accessible_spin1 = lambda Ex, Jtarget: \
-                spin_dist(Ex, Jtarget - 1/2) + spin_dist(Ex, Jtarget + 1/2) + spin_dist(Ex, Jtarget + 3/2)
-        elif Jtarget == 1:
+            rho1pi = 1/2 * fnld(Sn) * spin_dist(Sn, J_target + 1/2)
+            accessible_spin1 = lambda Ex, J_target: \
+                spin_dist(Ex, J_target - 1/2) + spin_dist(Ex, J_target + 1/2) + spin_dist(Ex, J_target + 3/2)
+        elif J_target == 1:
             # J_target = 1 > I_i = 1/2, 3/2    => I_f = 1/2, 3/2, 5/2
             # I_residual,i = 1/2 -> I_f = 1/2, 3/2
-            rho0pi = 1/2 * fnld(Sn) * spin_dist(Sn, Jtarget - 1/2)
-            accessible_spin0 = lambda Ex, Jtarget: \
-                spin_dist(Ex, Jtarget - 1/2) + spin_dist(Ex, Jtarget + 1/2)
+            rho0pi = 1/2 * fnld(Sn) * spin_dist(Sn, J_target - 1/2)
+            accessible_spin0 = lambda Ex, J_target: \
+                spin_dist(Ex, J_target - 1/2) + spin_dist(Ex, J_target + 1/2)
             # I_residual,i = 3/2 -> I_f = 1/2, 3/2, 5/2
-            rho1pi = 1/2 * fnld(Sn) * spin_dist(Sn, Jtarget + 1/2)
-            accessible_spin1 = lambda Ex, Jtarget: \
-                spin_dist(Ex, Jtarget - 1/2) + spin_dist(Ex, Jtarget + 1/2) + spin_dist(Ex, Jtarget + 3/2)
-        elif Jtarget > 1:
+            rho1pi = 1/2 * fnld(Sn) * spin_dist(Sn, J_target + 1/2)
+            accessible_spin1 = lambda Ex, J_target: \
+                spin_dist(Ex, J_target - 1/2) + spin_dist(Ex, J_target + 1/2) + spin_dist(Ex, J_target + 3/2)
+        elif J_target > 1:
             # J_target > 1 > I_i = Jt-1/2, Jt+1/2
             # => I_f = Jt-3/2, Jt-1/2, Jt+3/2, Jt+5/2
             # I_residual,i = Jt-1/2 -> I_f = Jt-3/2, Jt-1/2, Jt+1/2
-            rho0pi = 1/2 * fnld(Sn) * spin_dist(Sn, Jtarget - 1/2)
-            accessible_spin0 = lambda Ex, Jtarget: \
-                spin_dist(Ex, Jtarget - 3/2) + spin_dist(Ex, Jtarget - 1/2) + spin_dist(Ex, Jtarget + 1/2)
+            rho0pi = 1/2 * fnld(Sn) * spin_dist(Sn, J_target - 1/2)
+            accessible_spin0 = lambda Ex, J_target: \
+                spin_dist(Ex, J_target - 3/2) + spin_dist(Ex, J_target - 1/2) + spin_dist(Ex, J_target + 1/2)
             # I_residual,i = Jt+1/2 -> I_f = Jt-1/2, Jt+1/2, Jt+3/2
-            rho1pi = 1/2 * fnld(Sn) * spin_dist(Sn, Jtarget + 1/2)
-            accessible_spin1 = lambda Ex, Jtarget: \
-                spin_dist(Ex, Jtarget - 1/2) + spin_dist(Ex, Jtarget + 1/2) + spin_dist(Ex, Jtarget + 3/2)
+            rho1pi = 1/2 * fnld(Sn) * spin_dist(Sn, J_target + 1/2)
+            accessible_spin1 = lambda Ex, J_target: \
+                spin_dist(Ex, J_target - 1/2) + spin_dist(Ex, J_target + 1/2) + spin_dist(Ex, J_target + 3/2)
         else:
             ValueError("Negative J not supported")
 
@@ -394,10 +394,10 @@ class NormGSF:
                 print("warning: at Eg = {0}: Ex <{1}; check rho interpolate"
                       .format(Eg, Enld_exp_min))
             integral0 += np.power(Eg, 3) * fgsf(Eg) * \
-                fnld(Ex) * accessible_spin0(Ex, Jtarget)
+                fnld(Ex) * accessible_spin0(Ex, J_target)
             if rho1pi is not None:
                 integral1 += np.power(Eg, 3) * fgsf(Eg) * \
-                    fnld(Ex) * accessible_spin1(Ex, Jtarget)
+                    fnld(Ex) * accessible_spin1(Ex, J_target)
         # simplification: <Gg>_experimental is usually reported as the average over all individual
         # Gg's. Due to a lack of further knowledge, we assume that there are equally many transisions from target states
         # with It+1/2 as from It-1/2 Then we find:

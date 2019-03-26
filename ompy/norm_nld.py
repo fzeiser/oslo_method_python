@@ -2,6 +2,7 @@
 Normalization of NLD with the Oslo method
 """
 import ompy.library as lib
+from .spin_functions import SpinFunctions
 
 import numpy as np
 import scipy.stats as stats
@@ -24,17 +25,22 @@ class NormNLD:
         NLD Model for extrapolation
     pext : dict
         Parameters needed for the chosen extrapolation method
+    pspin : dict
+        Spin parameters needed for the chosen normalization method
     fname_discretes : str
         Path to file with discrete levels
 
     """
 
-    def __init__(self, nld, method, pnorm, nldModel, pext, fname_discretes):
+    def __init__(self, nld, method, pnorm, nldModel, pext,
+                 pspin, D0, fname_discretes):
         self.nld = nld
         self.method = method
         self.pnorm = pnorm
-        self.pext = pext
         self.nldModel = nldModel
+        self.pext = pext
+        self.pspin = pspin
+        self.D0 = D0
         self.fname_discretes = fname_discretes
 
         self.nld_norm = None  # Normalized nld
@@ -185,7 +191,7 @@ class NormNLD:
 
         E1_high = pnorm["E1_high"]
         E2_high = pnorm["E2_high"]
-        nld_Sn = pnorm["nld_Sn"]
+        pspin = self.pspin
 
         # slice out comparison regions
         idE1 = np.abs(nld[:,0] - E1_low).argmin()
@@ -207,8 +213,7 @@ class NormNLD:
             print("Other models not yet supported in this fit")
 
         from scipy.optimize import differential_evolution
-        chi2_args = (nldModel, nld_Sn, data_low, data_high, levels_smoothed)
-
+        chi2_args = (nldModel, data_low, data_high, levels_smoothed, pspin)
         bounds = pnorm["bounds_diff_evo"]
         res = differential_evolution(self.chi2_disc_ext,
                                      bounds=bounds,
@@ -216,14 +221,17 @@ class NormNLD:
         print("Result from find_norm / differential evolution:\n", res)
 
         from .multinest_setup import run_nld_2regions
-        p0 = dict(zip(["A", "alpha", "T"], (res.x).T))
+        p0 = dict(zip(["A", "alpha", "T", "D0"], (res.x).T))
+        #overwrite result for D0, as we have a "correct" prior for it
+        p0["D0"] = self.D0
         popt, samples = run_nld_2regions(p0=p0,
                                          chi2_args=chi2_args)
 
         # set extrapolation as the median values used
         self.pext["T"] = popt["T"][0]
+        nld_Sn = self.nldSn_from_D0(popt["D0"][0], **pspin)
         self.pext["Eshift"] = self.EshiftFromT(popt["T"][0],
-                                               self.pnorm["nld_Sn"])
+                                               nld_Sn)
         self.nld_ext = self.extrapolate()
 
         return popt, samples
@@ -235,7 +243,8 @@ class NormNLD:
 
     @staticmethod
     def chi2_disc_ext(x,
-                      nldModel, nld_Sn, data_low, data_high, levels_smoothed):
+                      nldModel, data_low, data_high, levels_smoothed,
+                      pspin):
         """
         Chi^2 between discrete levels at low energy and extrapolation at high energies
 
@@ -247,18 +256,19 @@ class NormNLD:
             Optimization argument in form of a 1D array
         nldModel : string
             NLD Model for extrapolation
-        nld_Sn : tuple
-            nld at Sn of form `[Ex, value]`
         data_low : ndarray
             Unnormalized nld at lower energies to be compared to discretes of form `[Ex, value]`
         data_high : ndarray
             Unnormalized nld at higher energies to be compared to `nldModel` of form `[Ex, value]`
         levels_smoothed: ndarray
             Discrete levels smoothed by experimental resolution of form `[value]`
+        pspin : dict
+            Spin parameters needed for the chosen normalization method
 
         """
         A, alpha = x[:2]
         T = x[2]
+        D0 = x[3]
 
         data = NormNLD.normalize(data_low, A, alpha)
         # n_low = len(data)
@@ -269,6 +279,7 @@ class NormNLD:
 
         data = NormNLD.normalize(data_high, A, alpha)
         # n_high = len(data)
+        nld_Sn = NormNLD.nldSn_from_D0(D0, **pspin)
         Eshift = NormNLD.EshiftFromT(T, nld_Sn)
         chi2 = (data[:,1] - nldModel(data[:,0], T, Eshift)) ** 2.
         if data.shape[1] == 3:  # weight with uncertainty, if existent
@@ -315,3 +326,41 @@ class NormNLD:
         if nld.shape[1] == 2:
             self.nld_norm = self.normalize(self.nld, self.A_norm,
                                            self.alpha_norm)
+
+    @staticmethod
+    def nldSn_from_D0(D0, Sn, J_target,
+                      spincutModel=None, spincutPars={},
+                      **kwargs):
+        """ Calculate nld(Sn) from D0
+
+        Parameters:
+        -----------
+        D0 : (float)
+            Average resonance spacing from s waves [eV]
+        Sn : (float)
+            Separation energy [MeV]
+        J_target : (float)
+            Target spin
+        spincutModel : string
+            Model to for the spincut
+        spincutPars : dict
+            Additional parameters necessary for the spin cut model
+
+        Returns:
+        --------
+        nld : [float, float]
+            Sn, nld at Sn [MeV, 1/MeV]
+        """
+
+        def g(J):
+            return SpinFunctions(Ex=Sn, J=J,
+                                 model=spincutModel,
+                                 pars=spincutPars).distibution()
+
+        if J_target == 0:
+            summe = g(J_target+1/2)
+        else:
+            summe = 1/2 * (g(J_target-1/2) + g(J_target+1/2))
+
+        nld = 1/(summe*D0*1e-6)
+        return [Sn,nld]

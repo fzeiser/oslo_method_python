@@ -34,7 +34,7 @@ def run_nld_2regions(p0, chi2_args):
 
     """
 
-    assert list(p0.keys()) == ["A", "alpha", "T"], \
+    assert list(p0.keys()) == ["A", "alpha", "T", "D0"], \
         "check if parameters really differ, if so, need to adjust priors!"
 
     A = p0["A"]
@@ -48,9 +48,11 @@ def run_nld_2regions(p0, chi2_args):
     assert T > 0, "Automatic prior selection not implementedfor T<0"
     T_exponent = math.log(T, 10)
 
+    D0 = p0["D0"]
+
     def prior(cube, ndim, nparams):
         # NOTE: You may want to adjust this for your case!
-        # log-normal prior
+        # normal prior
         cube[0] = scipy.stats.norm.ppf(cube[0], loc=A, scale=4*A)
         # log-uniform prior
         # if alpha = 1e2, it's between 1e1 and 1e3
@@ -58,6 +60,8 @@ def run_nld_2regions(p0, chi2_args):
         # log-uniform prior
         # if T = 1e2, it's between 1e1 and 1e3
         cube[2] = 10**(cube[2]*2 + (T_exponent-1))
+        # normal prior
+        cube[3] = scipy.stats.norm.ppf(cube[3], loc=D0[0], scale=D0[1])
 
     def loglike(cube, ndim, nparams):
         chi2 = NormNLD.chi2_disc_ext(cube, *chi2_args)
